@@ -1,0 +1,59 @@
+# This is a basic workflow to help you get started with Actions
+
+name: rollback script
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+    inputs:
+      ENV:
+        description: "dev,stg or prd"
+        required: true
+        type: string
+      CLUSTER_NAME:
+        description: "Cluster Name"
+        required: true
+        type: string
+      PACKAGE_NAME:
+        description: "Package Name"
+        required: true
+        type: string
+      ECR_REPO_NAME:
+        description: "ECR Repository Name"
+        required: true
+        type: string
+      ECR_IMAGE_TAG:
+        description: "ECR Image Tag Name"
+        required: true
+        type: string
+      REGION:
+        description: "AWS region code"
+        required: true
+        type: choice
+        default: "ap-northeast-2"
+        options:
+        - "ap-northeast-2"
+        - "us-east-1"
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  rollback-prepare:
+    runs-on: [self-hosted, github]
+    steps:
+    - name: Download rollback script
+      uses: actions/checkout@v1
+    - name: Survey Rollback Deploy Information
+      run: |
+        chmod +x rollback-prepare.sh
+        chmod +x rollback-deploy.sh
+        ./rollback-prepare.sh ${{ inputs.ENV }} ${{ inputs.CLUSTER_NAME }} ${{ inputs.PACKAGE_NAME }} ${{ inputs.ECR_REPO_NAME }}  ${{ inputs.ECR_IMAGE_TAG }} ${{ inputs.REGION }} 
+  rollback-deploy:
+    runs-on: [self-hosted, github]
+    steps:
+    - name: Deploy Approval
+      uses: trstringer/manual-approval@v1
+      with:
+        secret: ${{ github.TOKEN }}
+        approvers: pascal-h-kim,knowre-junhyung-lee,toa-lee
+    - name: Rollback Deploy
+      run: ./rollback-prepare.sh ${{ inputs.ENV }} ${{ inputs.CLUSTER_NAME }} ${{ inputs.PACKAGE_NAME }} ${{ inputs.ECR_REPO_NAME }}  ${{ inputs.ECR_IMAGE_TAG }} ${{ inputs.REGION }}
